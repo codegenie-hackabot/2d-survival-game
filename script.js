@@ -3,6 +3,7 @@ const ctx = canvas.getContext('2d');
 
 // Game state
 let health = 100;
+let score = 0;
 const player = { x: canvas.width/2, y: canvas.height/2, radius: 15, speed: 5 };
 
 // Mouse tracking
@@ -13,10 +14,8 @@ canvas.addEventListener('mousemove', e => {
   mousePos.y = e.clientY - rect.top;
 });
 
-// Zombies
-const zombies = [];
-const zombieSpawnInterval = 2000; // ms
-function spawnZombie(){
+// Enemy types
+function createEnemy(type){
   const side = Math.floor(Math.random()*4);
   let x,y;
   const margin = 20;
@@ -26,19 +25,27 @@ function spawnZombie(){
     case 2: x = Math.random()*canvas.width; y = -margin; break;
     case 3: x = Math.random()*canvas.width; y = canvas.height+margin; break;
   }
-  zombies.push({x, y, radius: 12, speed: 3});
+  if(type==='zombie'){
+    return {x, y, radius: 12, speed: 3, type:'zombie', points:10};
+  } else { // faster, smaller enemy
+    return {x, y, radius: 8, speed: 4.5, type:'runner', points:20, color:'#0ff'};
+  }
 }
-setInterval(spawnZombie, zombieSpawnInterval);
+
+const enemies = [];
+const spawnIntervals = [2000, 5000]; // ms for zombie, runner
+setInterval(()=>{enemies.push(createEnemy('zombie'));}, spawnIntervals[0]);
+setInterval(()=>{enemies.push(createEnemy('runner'));}, spawnIntervals[1]);
 
 // Bullets
 const bullets = [];
 const bulletSpeed = 7;
 let lastShot = 0;
-const shotDelay = 300; // ms between shots
+const shotDelay = 300; // ms
 window.addEventListener('keydown', e => {
   if(e.code==='Space'){
     const now = Date.now();
-    if(now - lastShot < shotDelay) return; // enforce delay
+    if(now - lastShot < shotDelay) return;
     lastShot = now;
     const dx = mousePos.x - player.x;
     const dy = mousePos.y - player.y;
@@ -63,21 +70,21 @@ function update(){
   player.x = Math.max(player.radius, Math.min(canvas.width-player.radius, player.x));
   player.y = Math.max(player.radius, Math.min(canvas.height-player.radius, player.y));
 
-  // zombies chase player
-  zombies.forEach(z=>{
-    const dx = player.x - z.x;
-    const dy = player.y - z.y;
+  // enemies chase player
+  enemies.forEach(e=>{
+    const dx = player.x - e.x;
+    const dy = player.y - e.y;
     const dist = Math.hypot(dx, dy);
     if(dist>0){
-      z.x += (dx/dist)*z.speed;
-      z.y += (dy/dist)*z.speed;
+      e.x += (dx/dist)*e.speed;
+      e.y += (dy/dist)*e.speed;
     }
-    if(dist < player.radius + z.radius){
+    if(dist < player.radius + e.radius){
       health -= 0.5;
     }
   });
 
-  // update bullets
+  // bullets movement
   for(let i=bullets.length-1;i>=0;i--){
     const b = bullets[i];
     b.x += b.vx;
@@ -87,16 +94,17 @@ function update(){
     }
   }
 
-  // bullet‑zombie collisions
+  // bullet-enemy collisions
   for(let i=bullets.length-1;i>=0;i--){
     const b = bullets[i];
-    for(let j=zombies.length-1;j>=0;j--){
-      const z = zombies[j];
-      const dx = b.x - z.x;
-      const dy = b.y - z.y;
+    for(let j=enemies.length-1;j>=0;j--){
+      const e = enemies[j];
+      const dx = b.x - e.x;
+      const dy = b.y - e.y;
       const dist = Math.hypot(dx, dy);
-      if(dist < b.radius + z.radius){
-        zombies.splice(j,1);
+      if(dist < b.radius + e.radius){
+        score += e.points;
+        enemies.splice(j,1);
         bullets.splice(i,1);
         break;
       }
@@ -113,16 +121,21 @@ function draw(){
   ctx.beginPath();
   ctx.arc(player.x, player.y, player.radius,0,Math.PI*2);
   ctx.fill();
-  // zombies
-  ctx.fillStyle = '#f00';
-  zombies.forEach(z=>{ ctx.beginPath(); ctx.arc(z.x,z.y,z.radius,0,Math.PI*2); ctx.fill(); });
+  // enemies
+  enemies.forEach(e=>{
+    ctx.fillStyle = e.type==='zombie' ? '#f00' : e.color;
+    ctx.beginPath();
+    ctx.arc(e.x, e.y, e.radius,0,Math.PI*2);
+    ctx.fill();
+  });
   // bullets
   ctx.fillStyle = '#ff0';
   bullets.forEach(b=>{ ctx.beginPath(); ctx.arc(b.x,b.y,b.radius,0,Math.PI*2); ctx.fill(); });
-  // health UI
+  // UI
   ctx.fillStyle = '#fff';
   ctx.font = '16px sans-serif';
   ctx.fillText('Health: '+Math.round(health),10,20);
+  ctx.fillText('Score: '+score,10,40);
 }
 
 function loop(){ update(); draw(); requestAnimationFrame(loop); }
