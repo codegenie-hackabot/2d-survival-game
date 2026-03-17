@@ -3,6 +3,8 @@ const ctx = canvas.getContext('2d');
 
 // Game state
 let health = 100;
+let maxHealth = 100; // player max health
+let healthRegen = 0; // health per second
 let score = 0;
 let gameOver = false;
 let startTime = Date.now();
@@ -19,6 +21,9 @@ let gamePaused = false; // pause during upgrade
 // Auto‑fire state
 let spaceHeld = false;
 let lastShot = 0;
+
+// Pause flag (Esc)
+let isPaused = false;
 
 // Mouse tracking
 let mousePos = { x: canvas.width/2, y: canvas.height/2 };
@@ -60,8 +65,14 @@ function getSpawnInterval(){
 const bullets = [];
 
 window.addEventListener('keydown', e => {
-  if(e.code==='Space' && !gameOver && !pendingUpgrade){
+  if(e.code==='Space' && !gameOver && !pendingUpgrade && !isPaused){
     spaceHeld = true;
+  }
+  if(e.code==='Escape'){
+    // toggle pause (but not during upgrade screen)
+    if(!pendingUpgrade){
+      isPaused = !isPaused;
+    }
   }
 });
 window.addEventListener('keyup', e => {
@@ -80,6 +91,11 @@ function applyUpgrade(choice){
     shotDelay = Math.max(100, shotDelay - 20);
   } else if(choice === 'fastBullet'){
     bulletSpeed += 2;
+  } else if(choice === 'regen'){
+    healthRegen += 2; // +2 HP per second
+  } else if(choice === 'maxHealth'){
+    maxHealth += 20; // increase max health
+    health = Math.min(health, maxHealth);
   }
   nextUpgradeScore += 50;
   pendingUpgrade = false;
@@ -100,9 +116,10 @@ function fireBullet(){
 
 function update(){
   if(gameOver) return;
+  if(isPaused) return; // global pause
   if(pendingUpgrade){
     gamePaused = true;
-    return; // halt while upgrade screen is shown
+    return;
   }
   // player movement
   if(keys['w']) player.y -= player.speed;
@@ -116,7 +133,7 @@ function update(){
   if(spaceHeld) fireBullet();
 
   // spawn enemies based on dynamic interval
-  spawnTimer += 16; // approximate ms per frame (will be refined by requestAnimationFrame)
+  spawnTimer += 16; // rough ms per frame
   if(spawnTimer >= getSpawnInterval()){
     spawnTimer = 0;
     if(!gameOver && !pendingUpgrade) enemies.push(createEnemy());
@@ -171,6 +188,13 @@ function update(){
     }
   }
 
+  // health regeneration
+  if(healthRegen > 0){
+    health += healthRegen * (16/1000); // assuming ~16ms per frame
+    if(health > maxHealth) health = maxHealth;
+  }
+
+  // clamp health
   if(health <= 0){
     health = 0;
     gameOver = true;
@@ -202,11 +226,12 @@ function draw(){
   ctx.fillStyle = '#fff';
   ctx.font = '16px sans-serif';
   ctx.textAlign = 'left';
-  ctx.fillText('Health: '+Math.round(health),10,20);
+  ctx.fillText('Health: '+Math.round(health)+'/'+maxHealth,10,20);
   ctx.fillText('Score: '+score,10,40);
   ctx.fillText('Damage: '+bulletDamage,10,60);
   ctx.fillText('Delay: '+shotDelay+'ms',10,80);
   ctx.fillText('Bullet Speed: '+bulletSpeed,10,100);
+  ctx.fillText('Regen: '+healthRegen+'/s',10,120);
 
   // upgrade overlay (pauses game)
   if(pendingUpgrade && !gameOver){
@@ -215,12 +240,24 @@ function draw(){
     ctx.fillStyle = '#fff';
     ctx.font = '24px sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText('Choose Upgrade', canvas.width/2, canvas.height/2 - 80);
+    ctx.fillText('Choose Upgrade', canvas.width/2, canvas.height/2 - 100);
     ctx.font = '20px sans-serif';
-    ctx.fillText('Press 1 for +Damage (+5)', canvas.width/2, canvas.height/2 - 40);
-    ctx.fillText('Press 2 for -Delay (-20ms)', canvas.width/2, canvas.height/2);
-    ctx.fillText('Press 3 for +Bullet Speed (+2)', canvas.width/2, canvas.height/2 + 40);
-    ctx.fillText('Current: Damage '+bulletDamage+', Delay '+shotDelay+'ms, Speed '+bulletSpeed, canvas.width/2, canvas.height/2 + 80);
+    ctx.fillText('Press 1 for +Damage (+5)', canvas.width/2, canvas.height/2 - 60);
+    ctx.fillText('Press 2 for -Delay (-20ms)', canvas.width/2, canvas.height/2 - 30);
+    ctx.fillText('Press 3 for +Bullet Speed (+2)', canvas.width/2, canvas.height/2 );
+    ctx.fillText('Press 4 for +Regen (+2/s)', canvas.width/2, canvas.height/2 + 30);
+    ctx.fillText('Press 5 for +Max Health (+20)', canvas.width/2, canvas.height/2 + 60);
+    ctx.fillText('Current: Dmg '+bulletDamage+', Delay '+shotDelay+'ms, Speed '+bulletSpeed+', Regen '+healthRegen+', MaxHP '+maxHealth, canvas.width/2, canvas.height/2 + 100);
+  }
+
+  // pause overlay
+  if(isPaused && !pendingUpgrade){
+    ctx.fillStyle = 'rgba(0,0,0,0.7)';
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+    ctx.fillStyle = '#fff';
+    ctx.font = '32px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('Paused – Press Escape to resume', canvas.width/2, canvas.height/2);
   }
 
   if(gameOver){
@@ -233,12 +270,14 @@ function draw(){
   }
 }
 
-// listen for upgrade choice keys (1,2,3)
+// listen for upgrade choice keys (1‑5)
 window.addEventListener('keydown', e=>{
   if(pendingUpgrade && !gameOver){
     if(e.key === '1') applyUpgrade('damage');
     else if(e.key === '2') applyUpgrade('speed');
     else if(e.key === '3') applyUpgrade('fastBullet');
+    else if(e.key === '4') applyUpgrade('regen');
+    else if(e.key === '5') applyUpgrade('maxHealth');
   }
 });
 
