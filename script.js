@@ -12,7 +12,7 @@ if (diffParam) {
   if (['easy', 'medium', 'hard'].includes(d)) difficulty = d.charAt(0).toUpperCase() + d.slice(1);
 }
 
-// Difficulty settings (Easy, Medium, Hard)
+// Difficulty settings
 const DIFFICULTY_SETTINGS = {
   Easy: {
     enemySpeed: 2.5,
@@ -25,15 +25,15 @@ const DIFFICULTY_SETTINGS = {
     maxHealthBase: 120,
     shotDelayBase: 350
   },
-  Medium: { // new medium (between Easy and Hard)
+  Medium: {
     enemySpeed: 3,
     spawnStart: 1200,
     spawnMin: 300,
     spawnReductionRate: 10,
     bulletDamage: 15,
     bulletSpeed: 7,
-    healthRegenBase: 1,
-    maxHealthBase: 110,
+    healthRegenBase: 0,
+    maxHealthBase: 100,
     shotDelayBase: 300
   },
   Hard: {
