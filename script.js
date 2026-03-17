@@ -11,6 +11,7 @@ const player = { x: canvas.width/2, y: canvas.height/2, radius: 15, speed: 5 };
 // Upgrade state
 let bulletDamage = 15;      // base damage
 let shotDelay = 300;        // ms between shots
+let bulletSpeed = 7;        // base bullet speed
 let nextUpgradeScore = 50; // when to show next upgrade choice
 let pendingUpgrade = false;
 let gamePaused = false; // pause during upgrade
@@ -45,11 +46,11 @@ function createEnemy(){
 }
 
 const enemies = [];
-setInterval(()=>{ if(!gameOver && !pendingUpgrade) enemies.push(createEnemy()); }, 2000);
+// spawn more frequently (every 1.2 seconds)
+setInterval(()=>{ if(!gameOver && !pendingUpgrade) enemies.push(createEnemy()); }, 1200);
 
-// Bullets
+// Bullets array
 const bullets = [];
-const bulletSpeed = 7;
 
 window.addEventListener('keydown', e => {
   if(e.code==='Space' && !gameOver && !pendingUpgrade){
@@ -70,6 +71,8 @@ function applyUpgrade(choice){
     bulletDamage += 5;
   } else if(choice === 'speed'){
     shotDelay = Math.max(100, shotDelay - 20);
+  } else if(choice === 'fastBullet'){
+    bulletSpeed += 2; // increase bullet travel speed
   }
   nextUpgradeScore += 50;
   pendingUpgrade = false;
@@ -92,7 +95,7 @@ function update(){
   if(gameOver) return;
   if(pendingUpgrade){
     gamePaused = true;
-    return; // halt all movement while upgrade screen is shown
+    return; // halt movement while upgrade screen is shown
   }
   // player movement
   if(keys['w']) player.y -= player.speed;
@@ -105,7 +108,7 @@ function update(){
   // auto‑fire handling
   if(spaceHeld) fireBullet();
 
-  // check for upgrade trigger
+  // upgrade trigger
   if(score >= nextUpgradeScore && !pendingUpgrade){
     pendingUpgrade = true;
   }
@@ -189,6 +192,7 @@ function draw(){
   ctx.fillText('Score: '+score,10,40);
   ctx.fillText('Damage: '+bulletDamage,10,60);
   ctx.fillText('Delay: '+shotDelay+'ms',10,80);
+  ctx.fillText('Bullet Speed: '+bulletSpeed,10,100);
 
   // upgrade overlay (pauses game)
   if(pendingUpgrade && !gameOver){
@@ -197,11 +201,12 @@ function draw(){
     ctx.fillStyle = '#fff';
     ctx.font = '24px sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText('Choose Upgrade', canvas.width/2, canvas.height/2 - 60);
+    ctx.fillText('Choose Upgrade', canvas.width/2, canvas.height/2 - 80);
     ctx.font = '20px sans-serif';
-    ctx.fillText('Press 1 for +Damage (+5)', canvas.width/2, canvas.height/2 - 20);
-    ctx.fillText('Press 2 for -Delay (-20ms)', canvas.width/2, canvas.height/2 + 20);
-    ctx.fillText('Current: Damage '+bulletDamage+', Delay '+shotDelay+'ms', canvas.width/2, canvas.height/2 + 60);
+    ctx.fillText('Press 1 for +Damage (+5)', canvas.width/2, canvas.height/2 - 40);
+    ctx.fillText('Press 2 for -Delay (-20ms)', canvas.width/2, canvas.height/2);
+    ctx.fillText('Press 3 for +Bullet Speed (+2)', canvas.width/2, canvas.height/2 + 40);
+    ctx.fillText('Current: Damage '+bulletDamage+', Delay '+shotDelay+'ms, Speed '+bulletSpeed, canvas.width/2, canvas.height/2 + 80);
   }
 
   if(gameOver){
@@ -214,13 +219,15 @@ function draw(){
   }
 }
 
-// listen for upgrade choice keys (1 and 2)
+// listen for upgrade choice keys (1,2,3)
 window.addEventListener('keydown', e=>{
   if(pendingUpgrade && !gameOver){
     if(e.key === '1'){
       applyUpgrade('damage');
     } else if(e.key === '2'){
       applyUpgrade('speed');
+    } else if(e.key === '3'){
+      applyUpgrade('fastBullet');
     }
   }
 });
