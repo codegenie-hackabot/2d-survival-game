@@ -11,7 +11,8 @@ const player = { x: canvas.width/2, y: canvas.height/2, radius: 15, speed: 5 };
 // Upgrade state
 let bulletDamage = 15;      // base damage
 let shotDelay = 300;        // ms between shots
-let nextUpgradeScore = 50; // when to apply next upgrade
+let nextUpgradeScore = 50; // when to show next upgrade choice
+let pendingUpgrade = false;
 
 // Mouse tracking
 let mousePos = { x: canvas.width/2, y: canvas.height/2 };
@@ -21,11 +22,11 @@ canvas.addEventListener('mousemove', e => {
   mousePos.y = e.clientY - rect.top;
 });
 
-// Enemy factory – only zombies now
+// Enemy factory – only zombies
 function createEnemy(){
   const elapsed = (Date.now() - startTime) / 1000; // seconds
   const baseHealth = 20;
-  const health = Math.floor(baseHealth + elapsed * 2); // +2 HP per second
+  const health = Math.floor(baseHealth + elapsed * 2);
   const side = Math.floor(Math.random()*4);
   let x,y;
   const margin = 20;
@@ -39,16 +40,16 @@ function createEnemy(){
 }
 
 const enemies = [];
-setInterval(()=>{ if(!gameOver) enemies.push(createEnemy()); }, 2000);
+setInterval(()=>{ if(!gameOver && !pendingUpgrade) enemies.push(createEnemy()); }, 2000);
 
-// Bullets array
+// Bullets
 const bullets = [];
 const bulletSpeed = 7;
 let lastShot = 0;
 window.addEventListener('keydown', e => {
-  if(e.code==='Space' && !gameOver){
+  if(e.code==='Space' && !gameOver && !pendingUpgrade){
     const now = Date.now();
-    if(now - lastShot < shotDelay) return; // enforce delay
+    if(now - lastShot < shotDelay) return;
     lastShot = now;
     const dx = mousePos.x - player.x;
     const dy = mousePos.y - player.y;
@@ -64,11 +65,15 @@ const keys = {};
 window.addEventListener('keydown', e=>{ keys[e.key]=true; });
 window.addEventListener('keyup', e=>{ keys[e.key]=false; });
 
-function applyUpgrade(){
-  // Simple rule: increase damage by 5 and reduce delay by 20ms each upgrade
-  bulletDamage += 5;
-  shotDelay = Math.max(100, shotDelay - 20); // never lower than 100ms
+function applyUpgrade(choice){
+  // choice: 'damage' or 'speed'
+  if(choice === 'damage'){
+    bulletDamage += 5;
+  } else if(choice === 'speed'){
+    shotDelay = Math.max(100, shotDelay - 20);
+  }
   nextUpgradeScore += 50;
+  pendingUpgrade = false;
 }
 
 function update(){
@@ -81,9 +86,9 @@ function update(){
   player.x = Math.max(player.radius, Math.min(canvas.width-player.radius, player.x));
   player.y = Math.max(player.radius, Math.min(canvas.height-player.radius, player.y));
 
-  // upgrade check
-  if(score >= nextUpgradeScore){
-    applyUpgrade();
+  // check for upgrade trigger
+  if(score >= nextUpgradeScore && !pendingUpgrade){
+    pendingUpgrade = true;
   }
 
   // enemies chase player
@@ -149,7 +154,6 @@ function draw(){
     ctx.beginPath();
     ctx.arc(e.x, e.y, e.radius,0,Math.PI*2);
     ctx.fill();
-    // health label
     ctx.fillStyle = '#fff';
     ctx.font = '10px sans-serif';
     ctx.textAlign = 'center';
@@ -166,6 +170,21 @@ function draw(){
   ctx.fillText('Score: '+score,10,40);
   ctx.fillText('Damage: '+bulletDamage,10,60);
   ctx.fillText('Delay: '+shotDelay+'ms',10,80);
+
+  // upgrade overlay
+  if(pendingUpgrade && !gameOver){
+    ctx.fillStyle = 'rgba(0,0,0,0.8)';
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+    ctx.fillStyle = '#fff';
+    ctx.font = '24px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('Choose Upgrade', canvas.width/2, canvas.height/2 - 60);
+    ctx.font = '20px sans-serif';
+    ctx.fillText('Press D for +Damage (+5)', canvas.width/2, canvas.height/2 - 20);
+    ctx.fillText('Press F for -Delay (-20ms)', canvas.width/2, canvas.height/2 + 20);
+    ctx.fillText('Current: Damage '+bulletDamage+', Delay '+shotDelay+'ms', canvas.width/2, canvas.height/2 + 60);
+  }
+
   if(gameOver){
     ctx.fillStyle = 'rgba(0,0,0,0.7)';
     ctx.fillRect(0,0,canvas.width,canvas.height);
@@ -175,6 +194,17 @@ function draw(){
     ctx.fillText('Game Over', canvas.width/2, canvas.height/2);
   }
 }
+
+// listen for upgrade choice keys
+window.addEventListener('keydown', e=>{
+  if(pendingUpgrade && !gameOver){
+    if(e.key.toLowerCase()==='d'){
+      applyUpgrade('damage');
+    } else if(e.key.toLowerCase()==='f'){
+      applyUpgrade('speed');
+    }
+  }
+});
 
 function loop(){
   update();
