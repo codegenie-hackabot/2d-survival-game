@@ -1,7 +1,7 @@
-// Score module with dynamic upgrade thresholds (no hard‑coded values)
+// Score module with dynamic upgrade thresholds – no hard‑coded numbers.
 // Upgrade 1 requires 50 points.
-// Each subsequent upgrade requires the previous requirement plus 50 plus the upgrade index minus 1.
-// This ensures the minimum required score grows by at least 50 each time and adds a slowly increasing offset.
+// Each subsequent upgrade requires the previous requirement + 50 + (upgradeIndex‑1).
+// This guarantees the minimum required score grows by at least 50 each time while adding a slowly increasing offset.
 
 export default class Score {
   constructor(initial = 0) {
@@ -21,14 +21,14 @@ export default class Score {
     return this.value;
   }
 
-  // Check and apply upgrades as long as the score meets the current threshold
+  // Internal check for crossing the upgrade threshold and applying upgrades
   _maybeUpgrade() {
     while (this.value >= this.nextThreshold) {
       this.upgradeCount += 1;
-      // Reward for the upgrade (first upgrade gives 50, later upgrades give diminishing returns)
+      // Reward for the upgrade (first upgrade gives 50, later upgrades use diminishing returns)
       const reward = this.upgradeCount === 1 ? 50 : Math.round(20 * Math.pow(0.8, this.upgradeCount - 2));
       this.value += reward;
-      // Next threshold = previous threshold + 50 + (upgradeCount - 1)
+      // New threshold = previous threshold + 50 + (upgradeCount - 1)
       this.nextThreshold = this.nextThreshold + 50 + (this.upgradeCount - 1);
     }
   }
