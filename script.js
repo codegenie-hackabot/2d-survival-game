@@ -5,6 +5,14 @@ const ctx = canvas.getContext('2d');
 let health = 100;
 const player = { x: canvas.width/2, y: canvas.height/2, radius: 15, speed: 5 };
 
+// Track mouse position
+let mousePos = { x: canvas.width/2, y: canvas.height/2 };
+canvas.addEventListener('mousemove', e => {
+  const rect = canvas.getBoundingClientRect();
+  mousePos.x = e.clientX - rect.left;
+  mousePos.y = e.clientY - rect.top;
+});
+
 // Zombies
 const zombies = [];
 const zombieSpawnInterval = 2000; // ms
@@ -27,8 +35,13 @@ const bullets = [];
 const bulletSpeed = 7;
 window.addEventListener('keydown', e=>{
   if(e.code==='Space'){
-    // fire bullet from player center
-    bullets.push({x: player.x, y: player.y, radius: 4});
+    // direction from player to mouse
+    const dx = mousePos.x - player.x;
+    const dy = mousePos.y - player.y;
+    const dist = Math.hypot(dx, dy) || 1;
+    const vx = (dx/dist) * bulletSpeed;
+    const vy = (dy/dist) * bulletSpeed;
+    bullets.push({x: player.x, y: player.y, radius: 4, vx, vy});
   }
 });
 
@@ -62,13 +75,16 @@ function update(){
   });
 
   // update bullets
-  bullets.forEach(b=>{
-    b.y -= bulletSpeed; // shoot upwards
-  });
-  // remove off‑screen bullets
   for(let i=bullets.length-1;i>=0;i--){
-    if(bullets[i].y < -bullets[i].radius) bullets.splice(i,1);
+    const b = bullets[i];
+    b.x += b.vx;
+    b.y += b.vy;
+    // remove off‑screen bullets
+    if(b.x < -b.radius || b.x > canvas.width + b.radius || b.y < -b.radius || b.y > canvas.height + b.radius){
+      bullets.splice(i,1);
+    }
   }
+
   // bullet‑zombie collisions
   for(let i=bullets.length-1;i>=0;i--){
     const b = bullets[i];
@@ -78,7 +94,6 @@ function update(){
       const dy = b.y - z.y;
       const dist = Math.hypot(dx, dy);
       if(dist < b.radius + z.radius){
-        // destroy both
         zombies.splice(j,1);
         bullets.splice(i,1);
         break;
