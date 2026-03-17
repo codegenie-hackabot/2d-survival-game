@@ -2,7 +2,7 @@ const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
 // Player object
-const player = { x: canvas.width/2, y: canvas.height/2, radius: 15, speed: 10 };
+const player = { x: canvas.width/2, y: canvas.height/2, radius: 15, speed: 5 };
 
 // Simple input handling (WASD)
 const keys = {};
