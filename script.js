@@ -5,6 +5,7 @@ const ctx = canvas.getContext('2d');
 let health = 100;
 let score = 0;
 let gameOver = false;
+let startTime = Date.now();
 const player = { x: canvas.width/2, y: canvas.height/2, radius: 15, speed: 5 };
 
 // Mouse tracking
@@ -15,8 +16,11 @@ canvas.addEventListener('mousemove', e => {
   mousePos.y = e.clientY - rect.top;
 });
 
-// Enemy factory
+// Enemy factory – health grows over time
 function createEnemy(type){
+  const elapsed = (Date.now() - startTime) / 1000; // seconds
+  const baseHealth = type === 'zombie' ? 20 : 30;
+  const health = Math.floor(baseHealth + elapsed * 2); // increase 2 HP per second
   const side = Math.floor(Math.random()*4);
   let x,y;
   const margin = 20;
@@ -27,9 +31,9 @@ function createEnemy(type){
     case 3: x = Math.random()*canvas.width; y = canvas.height+margin; break;
   }
   if(type==='zombie'){
-    return {x, y, radius: 12, speed: 3, type:'zombie', points:10, color:'#f00'};
+    return {x, y, radius: 12, speed: 3, type:'zombie', points:10, color:'#f00', health, maxHealth: health};
   } else { // runner
-    return {x, y, radius: 8, speed: 4.5, type:'runner', points:20, color:'#0ff'};
+    return {x, y, radius: 8, speed: 4.5, type:'runner', points:20, color:'#0ff', health, maxHealth: health};
   }
 }
 
@@ -37,7 +41,8 @@ const enemies = [];
 setInterval(()=>{if(!gameOver) enemies.push(createEnemy('zombie'));}, 2000);
 setInterval(()=>{if(!gameOver) enemies.push(createEnemy('runner'));}, 5000);
 
-// Bullets
+// Bullets – fixed damage
+const bulletDamage = 15;
 const bullets = [];
 const bulletSpeed = 7;
 let lastShot = 0;
@@ -95,7 +100,7 @@ function update(){
     }
   }
 
-  // bullet-enemy collisions
+  // bullet‑enemy collisions – apply fixed damage
   for(let i=bullets.length-1;i>=0;i--){
     const b = bullets[i];
     for(let j=enemies.length-1;j>=0;j--){
@@ -104,9 +109,13 @@ function update(){
       const dy = b.y - e.y;
       const dist = Math.hypot(dx, dy);
       if(dist < b.radius + e.radius){
-        score += e.points;
-        enemies.splice(j,1);
+        e.health -= bulletDamage;
+        // remove bullet on hit
         bullets.splice(i,1);
+        if(e.health <= 0){
+          score += e.points;
+          enemies.splice(j,1);
+        }
         break;
       }
     }
@@ -125,12 +134,17 @@ function draw(){
   ctx.beginPath();
   ctx.arc(player.x, player.y, player.radius,0,Math.PI*2);
   ctx.fill();
-  // enemies
+  // enemies (draw health bar on each)
   enemies.forEach(e=>{
     ctx.fillStyle = e.color;
     ctx.beginPath();
     ctx.arc(e.x, e.y, e.radius,0,Math.PI*2);
     ctx.fill();
+    // health indicator
+    ctx.fillStyle = '#fff';
+    ctx.font = '10px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(e.health, e.x, e.y - e.radius - 4);
   });
   // bullets
   ctx.fillStyle = '#ff0';
@@ -138,6 +152,7 @@ function draw(){
   // UI
   ctx.fillStyle = '#fff';
   ctx.font = '16px sans-serif';
+  ctx.textAlign = 'left';
   ctx.fillText('Health: '+Math.round(health),10,20);
   ctx.fillText('Score: '+score,10,40);
   if(gameOver){
