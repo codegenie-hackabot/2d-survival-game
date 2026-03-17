@@ -5,7 +5,7 @@ const ctx = canvas.getContext('2d');
 let health = 100;
 const player = { x: canvas.width/2, y: canvas.height/2, radius: 15, speed: 5 };
 
-// Track mouse position
+// Mouse tracking
 let mousePos = { x: canvas.width/2, y: canvas.height/2 };
 canvas.addEventListener('mousemove', e => {
   const rect = canvas.getBoundingClientRect();
@@ -21,21 +21,25 @@ function spawnZombie(){
   let x,y;
   const margin = 20;
   switch(side){
-    case 0: x = -margin; y = Math.random()*canvas.height; break; // left
-    case 1: x = canvas.width+margin; y = Math.random()*canvas.height; break; // right
-    case 2: x = Math.random()*canvas.width; y = -margin; break; // top
-    case 3: x = Math.random()*canvas.width; y = canvas.height+margin; break; // bottom
+    case 0: x = -margin; y = Math.random()*canvas.height; break;
+    case 1: x = canvas.width+margin; y = Math.random()*canvas.height; break;
+    case 2: x = Math.random()*canvas.width; y = -margin; break;
+    case 3: x = Math.random()*canvas.width; y = canvas.height+margin; break;
   }
-  zombies.push({x, y, radius: 12, speed: 3}); // faster zombies
+  zombies.push({x, y, radius: 12, speed: 3});
 }
 setInterval(spawnZombie, zombieSpawnInterval);
 
 // Bullets
 const bullets = [];
 const bulletSpeed = 7;
-window.addEventListener('keydown', e=>{
+let lastShot = 0;
+const shotDelay = 300; // ms between shots
+window.addEventListener('keydown', e => {
   if(e.code==='Space'){
-    // direction from player to mouse
+    const now = Date.now();
+    if(now - lastShot < shotDelay) return; // enforce delay
+    lastShot = now;
     const dx = mousePos.x - player.x;
     const dy = mousePos.y - player.y;
     const dist = Math.hypot(dx, dy) || 1;
@@ -59,7 +63,7 @@ function update(){
   player.x = Math.max(player.radius, Math.min(canvas.width-player.radius, player.x));
   player.y = Math.max(player.radius, Math.min(canvas.height-player.radius, player.y));
 
-  // zombies move toward player
+  // zombies chase player
   zombies.forEach(z=>{
     const dx = player.x - z.x;
     const dy = player.y - z.y;
@@ -68,7 +72,6 @@ function update(){
       z.x += (dx/dist)*z.speed;
       z.y += (dy/dist)*z.speed;
     }
-    // collision with player
     if(dist < player.radius + z.radius){
       health -= 0.5;
     }
@@ -79,7 +82,6 @@ function update(){
     const b = bullets[i];
     b.x += b.vx;
     b.y += b.vy;
-    // remove off‑screen bullets
     if(b.x < -b.radius || b.x > canvas.width + b.radius || b.y < -b.radius || b.y > canvas.height + b.radius){
       bullets.splice(i,1);
     }
@@ -113,27 +115,15 @@ function draw(){
   ctx.fill();
   // zombies
   ctx.fillStyle = '#f00';
-  zombies.forEach(z=>{
-    ctx.beginPath();
-    ctx.arc(z.x, z.y, z.radius,0,Math.PI*2);
-    ctx.fill();
-  });
+  zombies.forEach(z=>{ ctx.beginPath(); ctx.arc(z.x,z.y,z.radius,0,Math.PI*2); ctx.fill(); });
   // bullets
   ctx.fillStyle = '#ff0';
-  bullets.forEach(b=>{
-    ctx.beginPath();
-    ctx.arc(b.x, b.y, b.radius,0,Math.PI*2);
-    ctx.fill();
-  });
-  // health
+  bullets.forEach(b=>{ ctx.beginPath(); ctx.arc(b.x,b.y,b.radius,0,Math.PI*2); ctx.fill(); });
+  // health UI
   ctx.fillStyle = '#fff';
   ctx.font = '16px sans-serif';
   ctx.fillText('Health: '+Math.round(health),10,20);
 }
 
-function loop(){
-  update();
-  draw();
-  requestAnimationFrame(loop);
-}
+function loop(){ update(); draw(); requestAnimationFrame(loop); }
 loop();
