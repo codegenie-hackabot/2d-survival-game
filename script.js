@@ -8,6 +8,11 @@ let gameOver = false;
 let startTime = Date.now();
 const player = { x: canvas.width/2, y: canvas.height/2, radius: 15, speed: 5 };
 
+// Upgrade state
+let bulletDamage = 15;      // base damage
+let shotDelay = 300;        // ms between shots
+let nextUpgradeScore = 50; // when to apply next upgrade
+
 // Mouse tracking
 let mousePos = { x: canvas.width/2, y: canvas.height/2 };
 canvas.addEventListener('mousemove', e => {
@@ -19,8 +24,8 @@ canvas.addEventListener('mousemove', e => {
 // Enemy factory – only zombies now
 function createEnemy(){
   const elapsed = (Date.now() - startTime) / 1000; // seconds
-  const baseHealth = 20; // zombie base health
-  const health = Math.floor(baseHealth + elapsed * 2); // increase 2 HP per second
+  const baseHealth = 20;
+  const health = Math.floor(baseHealth + elapsed * 2); // +2 HP per second
   const side = Math.floor(Math.random()*4);
   let x,y;
   const margin = 20;
@@ -36,16 +41,14 @@ function createEnemy(){
 const enemies = [];
 setInterval(()=>{ if(!gameOver) enemies.push(createEnemy()); }, 2000);
 
-// Bullets – fixed damage
-const bulletDamage = 15;
+// Bullets array
 const bullets = [];
 const bulletSpeed = 7;
 let lastShot = 0;
-const shotDelay = 300; // ms
 window.addEventListener('keydown', e => {
   if(e.code==='Space' && !gameOver){
     const now = Date.now();
-    if(now - lastShot < shotDelay) return;
+    if(now - lastShot < shotDelay) return; // enforce delay
     lastShot = now;
     const dx = mousePos.x - player.x;
     const dy = mousePos.y - player.y;
@@ -61,6 +64,13 @@ const keys = {};
 window.addEventListener('keydown', e=>{ keys[e.key]=true; });
 window.addEventListener('keyup', e=>{ keys[e.key]=false; });
 
+function applyUpgrade(){
+  // Simple rule: increase damage by 5 and reduce delay by 20ms each upgrade
+  bulletDamage += 5;
+  shotDelay = Math.max(100, shotDelay - 20); // never lower than 100ms
+  nextUpgradeScore += 50;
+}
+
 function update(){
   if(gameOver) return;
   // player movement
@@ -70,6 +80,11 @@ function update(){
   if(keys['d']) player.x += player.speed;
   player.x = Math.max(player.radius, Math.min(canvas.width-player.radius, player.x));
   player.y = Math.max(player.radius, Math.min(canvas.height-player.radius, player.y));
+
+  // upgrade check
+  if(score >= nextUpgradeScore){
+    applyUpgrade();
+  }
 
   // enemies chase player
   enemies.forEach(e=>{
@@ -95,7 +110,7 @@ function update(){
     }
   }
 
-  // bullet‑enemy collisions – fixed damage
+  // bullet‑enemy collisions (fixed damage)
   for(let i=bullets.length-1;i>=0;i--){
     const b = bullets[i];
     for(let j=enemies.length-1;j>=0;j--){
@@ -128,7 +143,7 @@ function draw(){
   ctx.beginPath();
   ctx.arc(player.x, player.y, player.radius,0,Math.PI*2);
   ctx.fill();
-  // enemies (zombies only)
+  // enemies
   enemies.forEach(e=>{
     ctx.fillStyle = e.color;
     ctx.beginPath();
@@ -149,6 +164,8 @@ function draw(){
   ctx.textAlign = 'left';
   ctx.fillText('Health: '+Math.round(health),10,20);
   ctx.fillText('Score: '+score,10,40);
+  ctx.fillText('Damage: '+bulletDamage,10,60);
+  ctx.fillText('Delay: '+shotDelay+'ms',10,80);
   if(gameOver){
     ctx.fillStyle = 'rgba(0,0,0,0.7)';
     ctx.fillRect(0,0,canvas.width,canvas.height);
