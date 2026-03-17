@@ -1,15 +1,14 @@
-// Score module with fixed 500-point upgrade requirement only.
+// Score module – upgrades only raise the required score by 500 each time.
 // Upgrade 1 requires 50 points.
-// Each subsequent upgrade requires the previous requirement + 500.
-// Upgrades no longer add points to the score; they only raise the threshold.
+// Upgrade N (N>1) requires 50 + 500*(N-1) points.
+// No points are added to the score when an upgrade occurs.
 
 export default class Score {
   constructor(initial = 0) {
-    this.value = initial;          // current score (no upgrade rewards)
-    this.upgradeCount = 0;         // number of upgrades performed
-    this.baseRequirement = 50;     // requirement for the first upgrade
-    this.nextThreshold = this.baseRequirement; // score needed for next upgrade
-    this.requirementIncrement = 500; // increase in requirement after each upgrade
+    this.value = initial; // current score
+    this.upgradeCount = 0; // how many upgrades have been applied
+    this.baseRequirement = 50; // requirement for the first upgrade
+    this.increment = 500; // increase in requirement after each upgrade
   }
 
   // Add points and automatically handle upgrades when thresholds are met.
@@ -22,23 +21,23 @@ export default class Score {
     return this.value;
   }
 
-  // Apply upgrades as long as the current score meets the threshold.
+  // Check and apply upgrades (one at a time) based on the current score.
   _maybeUpgrade() {
-    while (this.value >= this.nextThreshold) {
+    // Compute the requirement for the next upgrade using the formula
+    const required = this.baseRequirement + this.upgradeCount * this.increment;
+    if (this.value >= required) {
       this.upgradeCount += 1;
-      // No reward added to the score for upgrades.
-      // Increase the requirement for the next upgrade by 500.
-      this.nextThreshold = this.nextThreshold + this.requirementIncrement;
+      // No reward is added – only the threshold changes.
     }
   }
 
-  // Get the current threshold (useful for UI display)
-  getThreshold() {
-    return this.nextThreshold;
-  }
-
-  // Retrieve current score value
+  // Return the score value.
   get() {
     return this.value;
+  }
+
+  // Return the current upgrade requirement.
+  getThreshold() {
+    return this.baseRequirement + this.upgradeCount * this.increment;
   }
 }
