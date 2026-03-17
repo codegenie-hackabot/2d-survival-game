@@ -2,7 +2,7 @@ const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
 // Player object
-const player = { x: canvas.width/2, y: canvas.height/2, radius: 15, speed: 5 };
+const player = { x: canvas.width/2, y: canvas.height/2, radius: 15, speed: 10 };
 
 // Simple input handling (WASD)
 const keys = {};
@@ -21,7 +21,6 @@ function update() {
 
 function draw() {
   ctx.clearRect(0,0,canvas.width,canvas.height);
-  // Draw player
   ctx.fillStyle = '#0f0';
   ctx.beginPath();
   ctx.arc(player.x, player.y, player.radius, 0, Math.PI*2);
