@@ -13,6 +13,11 @@ let bulletDamage = 15;      // base damage
 let shotDelay = 300;        // ms between shots
 let nextUpgradeScore = 50; // when to show next upgrade choice
 let pendingUpgrade = false;
+let gamePaused = false; // pause during upgrade
+
+// Auto‑fire state
+let spaceHeld = false;
+let lastShot = 0;
 
 // Mouse tracking
 let mousePos = { x: canvas.width/2, y: canvas.height/2 };
@@ -22,11 +27,11 @@ canvas.addEventListener('mousemove', e => {
   mousePos.y = e.clientY - rect.top;
 });
 
-// Enemy factory – only zombies
+// Enemy factory – zombies only, slower HP growth
 function createEnemy(){
   const elapsed = (Date.now() - startTime) / 1000; // seconds
   const baseHealth = 20;
-  const health = Math.floor(baseHealth + elapsed * 2);
+  const health = Math.floor(baseHealth + elapsed * 0.5); // +0.5 HP per second
   const side = Math.floor(Math.random()*4);
   let x,y;
   const margin = 20;
@@ -45,19 +50,14 @@ setInterval(()=>{ if(!gameOver && !pendingUpgrade) enemies.push(createEnemy()); 
 // Bullets
 const bullets = [];
 const bulletSpeed = 7;
-let lastShot = 0;
+
 window.addEventListener('keydown', e => {
   if(e.code==='Space' && !gameOver && !pendingUpgrade){
-    const now = Date.now();
-    if(now - lastShot < shotDelay) return;
-    lastShot = now;
-    const dx = mousePos.x - player.x;
-    const dy = mousePos.y - player.y;
-    const dist = Math.hypot(dx, dy) || 1;
-    const vx = (dx/dist) * bulletSpeed;
-    const vy = (dy/dist) * bulletSpeed;
-    bullets.push({x: player.x, y: player.y, radius: 4, vx, vy});
+    spaceHeld = true;
   }
+});
+window.addEventListener('keyup', e => {
+  if(e.code==='Space') spaceHeld = false;
 });
 
 // Input handling (WASD)
@@ -66,7 +66,6 @@ window.addEventListener('keydown', e=>{ keys[e.key]=true; });
 window.addEventListener('keyup', e=>{ keys[e.key]=false; });
 
 function applyUpgrade(choice){
-  // choice: 'damage' or 'speed'
   if(choice === 'damage'){
     bulletDamage += 5;
   } else if(choice === 'speed'){
@@ -74,10 +73,27 @@ function applyUpgrade(choice){
   }
   nextUpgradeScore += 50;
   pendingUpgrade = false;
+  gamePaused = false;
+}
+
+function fireBullet(){
+  const now = Date.now();
+  if(now - lastShot < shotDelay) return;
+  lastShot = now;
+  const dx = mousePos.x - player.x;
+  const dy = mousePos.y - player.y;
+  const dist = Math.hypot(dx, dy) || 1;
+  const vx = (dx/dist) * bulletSpeed;
+  const vy = (dy/dist) * bulletSpeed;
+  bullets.push({x: player.x, y: player.y, radius: 4, vx, vy});
 }
 
 function update(){
   if(gameOver) return;
+  if(pendingUpgrade){
+    gamePaused = true;
+    return; // halt all movement while upgrade screen is shown
+  }
   // player movement
   if(keys['w']) player.y -= player.speed;
   if(keys['s']) player.y += player.speed;
@@ -85,6 +101,9 @@ function update(){
   if(keys['d']) player.x += player.speed;
   player.x = Math.max(player.radius, Math.min(canvas.width-player.radius, player.x));
   player.y = Math.max(player.radius, Math.min(canvas.height-player.radius, player.y));
+
+  // auto‑fire handling
+  if(spaceHeld) fireBullet();
 
   // check for upgrade trigger
   if(score >= nextUpgradeScore && !pendingUpgrade){
@@ -171,9 +190,9 @@ function draw(){
   ctx.fillText('Damage: '+bulletDamage,10,60);
   ctx.fillText('Delay: '+shotDelay+'ms',10,80);
 
-  // upgrade overlay
+  // upgrade overlay (pauses game)
   if(pendingUpgrade && !gameOver){
-    ctx.fillStyle = 'rgba(0,0,0,0.8)';
+    ctx.fillStyle = 'rgba(0,0,0,0.85)';
     ctx.fillRect(0,0,canvas.width,canvas.height);
     ctx.fillStyle = '#fff';
     ctx.font = '24px sans-serif';
