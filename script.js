@@ -5,7 +5,7 @@ const ctx = canvas.getContext('2d');
 let health = 100;
 const player = { x: canvas.width/2, y: canvas.height/2, radius: 15, speed: 5 };
 
-// Zombies array
+// Zombies
 const zombies = [];
 const zombieSpawnInterval = 2000; // ms
 function spawnZombie(){
@@ -18,14 +18,24 @@ function spawnZombie(){
     case 2: x = Math.random()*canvas.width; y = -margin; break; // top
     case 3: x = Math.random()*canvas.width; y = canvas.height+margin; break; // bottom
   }
-  zombies.push({x, y, radius: 12, speed: 1.5});
+  zombies.push({x, y, radius: 12, speed: 3}); // faster zombies
 }
 setInterval(spawnZombie, zombieSpawnInterval);
 
+// Bullets
+const bullets = [];
+const bulletSpeed = 7;
+window.addEventListener('keydown', e=>{
+  if(e.code==='Space'){
+    // fire bullet from player center
+    bullets.push({x: player.x, y: player.y, radius: 4});
+  }
+});
+
 // Input handling (WASD)
 const keys = {};
-window.addEventListener('keydown', e=>{keys[e.key]=true;});
-window.addEventListener('keyup', e=>{keys[e.key]=false;});
+window.addEventListener('keydown', e=>{ keys[e.key]=true; });
+window.addEventListener('keyup', e=>{ keys[e.key]=false; });
 
 function update(){
   // player movement
@@ -45,31 +55,62 @@ function update(){
       z.x += (dx/dist)*z.speed;
       z.y += (dy/dist)*z.speed;
     }
-    // collision
+    // collision with player
     if(dist < player.radius + z.radius){
-      health -= 0.5; // damage per frame
+      health -= 0.5;
     }
   });
-  // remove off‑screen zombies (optional)
-  // keep health non‑negative
+
+  // update bullets
+  bullets.forEach(b=>{
+    b.y -= bulletSpeed; // shoot upwards
+  });
+  // remove off‑screen bullets
+  for(let i=bullets.length-1;i>=0;i--){
+    if(bullets[i].y < -bullets[i].radius) bullets.splice(i,1);
+  }
+  // bullet‑zombie collisions
+  for(let i=bullets.length-1;i>=0;i--){
+    const b = bullets[i];
+    for(let j=zombies.length-1;j>=0;j--){
+      const z = zombies[j];
+      const dx = b.x - z.x;
+      const dy = b.y - z.y;
+      const dist = Math.hypot(dx, dy);
+      if(dist < b.radius + z.radius){
+        // destroy both
+        zombies.splice(j,1);
+        bullets.splice(i,1);
+        break;
+      }
+    }
+  }
+
   if(health<0) health = 0;
 }
 
 function draw(){
   ctx.clearRect(0,0,canvas.width,canvas.height);
-  // draw player
+  // player
   ctx.fillStyle = '#0f0';
   ctx.beginPath();
   ctx.arc(player.x, player.y, player.radius,0,Math.PI*2);
   ctx.fill();
-  // draw zombies
+  // zombies
   ctx.fillStyle = '#f00';
   zombies.forEach(z=>{
     ctx.beginPath();
     ctx.arc(z.x, z.y, z.radius,0,Math.PI*2);
     ctx.fill();
   });
-  // draw health bar
+  // bullets
+  ctx.fillStyle = '#ff0';
+  bullets.forEach(b=>{
+    ctx.beginPath();
+    ctx.arc(b.x, b.y, b.radius,0,Math.PI*2);
+    ctx.fill();
+  });
+  // health
   ctx.fillStyle = '#fff';
   ctx.font = '16px sans-serif';
   ctx.fillText('Health: '+Math.round(health),10,20);
