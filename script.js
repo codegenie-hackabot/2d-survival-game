@@ -180,8 +180,8 @@ function draw(){
     ctx.textAlign = 'center';
     ctx.fillText('Choose Upgrade', canvas.width/2, canvas.height/2 - 60);
     ctx.font = '20px sans-serif';
-    ctx.fillText('Press D for +Damage (+5)', canvas.width/2, canvas.height/2 - 20);
-    ctx.fillText('Press F for -Delay (-20ms)', canvas.width/2, canvas.height/2 + 20);
+    ctx.fillText('Press 1 for +Damage (+5)', canvas.width/2, canvas.height/2 - 20);
+    ctx.fillText('Press 2 for -Delay (-20ms)', canvas.width/2, canvas.height/2 + 20);
     ctx.fillText('Current: Damage '+bulletDamage+', Delay '+shotDelay+'ms', canvas.width/2, canvas.height/2 + 60);
   }
 
@@ -195,12 +195,12 @@ function draw(){
   }
 }
 
-// listen for upgrade choice keys
+// listen for upgrade choice keys (1 and 2)
 window.addEventListener('keydown', e=>{
   if(pendingUpgrade && !gameOver){
-    if(e.key.toLowerCase()==='d'){
+    if(e.key === '1'){
       applyUpgrade('damage');
-    } else if(e.key.toLowerCase()==='f'){
+    } else if(e.key === '2'){
       applyUpgrade('speed');
     }
   }
