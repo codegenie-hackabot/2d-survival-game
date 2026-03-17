@@ -1,5 +1,12 @@
-const canvas = document.getElementById('gameCanvas');
-const ctx = canvas.getContext('2d');
+// Difficulty selection (Easy, Medium, Hard)
+let difficulty = 'Medium'; // default
+// You can change difficulty by adding ?diff=easy|medium|hard to the URL
+const urlParams = new URLSearchParams(window.location.search);
+const diffParam = urlParams.get('diff');
+if(diffParam){
+  const d = diffParam.toLowerCase();
+  if(['easy','medium','hard'].includes(d)) difficulty = d.charAt(0).toUpperCase() + d.slice(1);
+}
 
 // Game state
 let health = 100;
@@ -10,11 +17,55 @@ let gameOver = false;
 let startTime = Date.now();
 const player = { x: canvas.width/2, y: canvas.height/2, radius: 15, speed: 5 };
 
+// Difficulty‑based constants
+const DIFFICULTY_SETTINGS = {
+  Easy: {
+    enemySpeed: 2.5,
+    spawnStart: 1500, // ms
+    spawnMin: 500,
+    spawnReductionRate: 5, // ms per second
+    bulletDamage: 20,
+    bulletSpeed: 8,
+    healthRegenBase: 2,
+    maxHealthBase: 120,
+    shotDelayBase: 350
+  },
+  Medium: {
+    enemySpeed: 3,
+    spawnStart: 1200,
+    spawnMin: 300,
+    spawnReductionRate: 10,
+    bulletDamage: 15,
+    bulletSpeed: 7,
+    healthRegenBase: 0,
+    maxHealthBase: 100,
+    shotDelayBase: 300
+  },
+  Hard: {
+    enemySpeed: 3.5,
+    spawnStart: 900,
+    spawnMin: 200,
+    spawnReductionRate: 15,
+    bulletDamage: 12,
+    bulletSpeed: 6,
+    healthRegenBase: 0,
+    maxHealthBase: 80,
+    shotDelayBase: 250
+  }
+};
+
+const settings = DIFFICULTY_SETTINGS[difficulty];
+
+// Apply difficulty base values
+let bulletDamage = settings.bulletDamage;
+let shotDelay = settings.shotDelayBase;
+let bulletSpeed = settings.bulletSpeed;
+maxHealth = settings.maxHealthBase;
+health = maxHealth;
+healthRegen = settings.healthRegenBase;
+
 // Upgrade state
-let bulletDamage = 15;      // base damage
-let shotDelay = 300;        // ms between shots
-let bulletSpeed = 7;        // base bullet speed
-let nextUpgradeScore = 50; // when to show next upgrade choice
+let nextUpgradeScore = 50; // initial threshold
 let pendingUpgrade = false;
 let gamePaused = false; // pause during upgrade
 
@@ -33,7 +84,7 @@ canvas.addEventListener('mousemove', e => {
   mousePos.y = e.clientY - rect.top;
 });
 
-// Enemy factory – zombies only, slower HP growth
+// Enemy factory – uses difficulty speed
 function createEnemy(){
   const elapsed = (Date.now() - startTime) / 1000; // seconds
   const baseHealth = 20;
@@ -47,18 +98,16 @@ function createEnemy(){
     case 2: x = Math.random()*canvas.width; y = -margin; break;
     case 3: x = Math.random()*canvas.width; y = canvas.height+margin; break;
   }
-  return {x, y, radius: 12, speed: 3, type:'zombie', points:10, color:'#f00', health, maxHealth: health};
+  return {x, y, radius: 12, speed: settings.enemySpeed, type:'zombie', points:10, color:'#f00', health, maxHealth: health};
 }
 
 const enemies = [];
 let spawnTimer = 0;
 function getSpawnInterval(){
-  // Start at 1200ms, gradually decrease to a minimum of 300ms over 2 minutes
+  // Linear reduction over time based on difficulty settings
   const elapsed = (Date.now() - startTime) / 1000; // seconds
-  const min = 300;
-  const start = 1200;
-  const reduction = Math.min(elapsed * 10, start - min); // 10ms per second
-  return start - reduction;
+  const reduction = Math.min(elapsed * settings.spawnReductionRate, settings.spawnStart - settings.spawnMin);
+  return settings.spawnStart - reduction;
 }
 
 // Bullets array
@@ -69,10 +118,7 @@ window.addEventListener('keydown', e => {
     spaceHeld = true;
   }
   if(e.code==='Escape'){
-    // toggle pause (but not during upgrade screen)
-    if(!pendingUpgrade){
-      isPaused = !isPaused;
-    }
+    if(!pendingUpgrade) isPaused = !isPaused;
   }
 });
 window.addEventListener('keyup', e => {
@@ -92,12 +138,13 @@ function applyUpgrade(choice){
   } else if(choice === 'fastBullet'){
     bulletSpeed += 2;
   } else if(choice === 'regen'){
-    healthRegen += 2; // +2 HP per second
+    healthRegen += 2;
   } else if(choice === 'maxHealth'){
-    maxHealth += 20; // increase max health
+    maxHealth += 20;
     if(health > maxHealth) health = maxHealth;
   }
-  nextUpgradeScore += 50;
+  // increase threshold for next upgrade – grows by 50% each time
+  nextUpgradeScore = Math.round(nextUpgradeScore * 1.5);
   pendingUpgrade = false;
   gamePaused = false;
 }
@@ -115,7 +162,6 @@ function fireBullet(){
 }
 
 function resolveEnemyCollisions(){
-  // Simple repulsion: if two enemies overlap, push them apart equally
   for(let i=0;i<enemies.length;i++){
     for(let j=i+1;j<enemies.length;j++){
       const a = enemies[i];
@@ -128,7 +174,6 @@ function resolveEnemyCollisions(){
         const overlap = minDist - dist;
         const nx = dx/dist;
         const ny = dy/dist;
-        // move each half the overlap opposite directions
         a.x -= nx * overlap/2;
         a.y -= ny * overlap/2;
         b.x += nx * overlap/2;
@@ -145,7 +190,7 @@ function resolveEnemyCollisions(){
 
 function update(){
   if(gameOver) return;
-  if(isPaused) return; // global pause
+  if(isPaused) return;
   if(pendingUpgrade){
     gamePaused = true;
     return;
@@ -161,8 +206,8 @@ function update(){
   // auto‑fire
   if(spaceHeld) fireBullet();
 
-  // spawn enemies based on dynamic interval
-  spawnTimer += 16; // rough ms per frame
+  // spawn timer
+  spawnTimer += 16;
   if(spawnTimer >= getSpawnInterval()){
     spawnTimer = 0;
     if(!gameOver && !pendingUpgrade) enemies.push(createEnemy());
@@ -187,7 +232,7 @@ function update(){
     }
   });
 
-  // prevent enemies from overlapping
+  // resolve collisions between enemies
   resolveEnemyCollisions();
 
   // bullets movement
@@ -200,7 +245,7 @@ function update(){
     }
   }
 
-  // bullet‑enemy collisions (fixed damage)
+  // bullet‑enemy collisions
   for(let i=bullets.length-1;i>=0;i--){
     const b = bullets[i];
     for(let j=enemies.length-1;j>=0;j--){
@@ -220,13 +265,13 @@ function update(){
     }
   }
 
-  // health regeneration
+  // health regen
   if(healthRegen > 0){
     health += healthRegen * (16/1000);
     if(health > maxHealth) health = maxHealth;
   }
 
-  // clamp health
+  // death
   if(health <= 0){
     health = 0;
     gameOver = true;
@@ -264,8 +309,9 @@ function draw(){
   ctx.fillText('Delay: '+shotDelay+'ms',10,80);
   ctx.fillText('Bullet Speed: '+bulletSpeed,10,100);
   ctx.fillText('Regen: '+healthRegen+'/s',10,120);
+  ctx.fillText('Difficulty: '+difficulty,10,140);
 
-  // upgrade overlay (pauses game)
+  // upgrade overlay
   if(pendingUpgrade && !gameOver){
     ctx.fillStyle = 'rgba(0,0,0,0.85)';
     ctx.fillRect(0,0,canvas.width,canvas.height);
@@ -279,7 +325,7 @@ function draw(){
     ctx.fillText('Press 3 for +Bullet Speed (+2)', canvas.width/2, canvas.height/2);
     ctx.fillText('Press 4 for +Regen (+2/s)', canvas.width/2, canvas.height/2 + 30);
     ctx.fillText('Press 5 for +Max Health (+20)', canvas.width/2, canvas.height/2 + 60);
-    ctx.fillText('Current: Dmg '+bulletDamage+', Delay '+shotDelay+'ms, Speed '+bulletSpeed+', Regen '+healthRegen+', MaxHP '+maxHealth, canvas.width/2, canvas.height/2 + 100);
+    ctx.fillText('Next upgrade at: '+nextUpgradeScore, canvas.width/2, canvas.height/2 + 100);
   }
 
   // pause overlay
