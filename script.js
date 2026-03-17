@@ -46,8 +46,15 @@ function createEnemy(){
 }
 
 const enemies = [];
-// spawn more frequently (every 1.2 seconds)
-setInterval(()=>{ if(!gameOver && !pendingUpgrade) enemies.push(createEnemy()); }, 1200);
+let spawnTimer = 0;
+function getSpawnInterval(){
+  // Start at 1200ms, gradually decrease to a minimum of 300ms over 2 minutes
+  const elapsed = (Date.now() - startTime) / 1000; // seconds
+  const min = 300;
+  const start = 1200;
+  const reduction = Math.min(elapsed * 10, start - min); // 10ms per second
+  return start - reduction;
+}
 
 // Bullets array
 const bullets = [];
@@ -72,7 +79,7 @@ function applyUpgrade(choice){
   } else if(choice === 'speed'){
     shotDelay = Math.max(100, shotDelay - 20);
   } else if(choice === 'fastBullet'){
-    bulletSpeed += 2; // increase bullet travel speed
+    bulletSpeed += 2;
   }
   nextUpgradeScore += 50;
   pendingUpgrade = false;
@@ -95,7 +102,7 @@ function update(){
   if(gameOver) return;
   if(pendingUpgrade){
     gamePaused = true;
-    return; // halt movement while upgrade screen is shown
+    return; // halt while upgrade screen is shown
   }
   // player movement
   if(keys['w']) player.y -= player.speed;
@@ -105,8 +112,15 @@ function update(){
   player.x = Math.max(player.radius, Math.min(canvas.width-player.radius, player.x));
   player.y = Math.max(player.radius, Math.min(canvas.height-player.radius, player.y));
 
-  // auto‑fire handling
+  // auto‑fire
   if(spaceHeld) fireBullet();
+
+  // spawn enemies based on dynamic interval
+  spawnTimer += 16; // approximate ms per frame (will be refined by requestAnimationFrame)
+  if(spawnTimer >= getSpawnInterval()){
+    spawnTimer = 0;
+    if(!gameOver && !pendingUpgrade) enemies.push(createEnemy());
+  }
 
   // upgrade trigger
   if(score >= nextUpgradeScore && !pendingUpgrade){
@@ -222,13 +236,9 @@ function draw(){
 // listen for upgrade choice keys (1,2,3)
 window.addEventListener('keydown', e=>{
   if(pendingUpgrade && !gameOver){
-    if(e.key === '1'){
-      applyUpgrade('damage');
-    } else if(e.key === '2'){
-      applyUpgrade('speed');
-    } else if(e.key === '3'){
-      applyUpgrade('fastBullet');
-    }
+    if(e.key === '1') applyUpgrade('damage');
+    else if(e.key === '2') applyUpgrade('speed');
+    else if(e.key === '3') applyUpgrade('fastBullet');
   }
 });
 
