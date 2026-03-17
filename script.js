@@ -4,6 +4,7 @@ const ctx = canvas.getContext('2d');
 // Game state
 let health = 100;
 let score = 0;
+let gameOver = false;
 const player = { x: canvas.width/2, y: canvas.height/2, radius: 15, speed: 5 };
 
 // Mouse tracking
@@ -14,7 +15,7 @@ canvas.addEventListener('mousemove', e => {
   mousePos.y = e.clientY - rect.top;
 });
 
-// Enemy types
+// Enemy factory
 function createEnemy(type){
   const side = Math.floor(Math.random()*4);
   let x,y;
@@ -26,16 +27,15 @@ function createEnemy(type){
     case 3: x = Math.random()*canvas.width; y = canvas.height+margin; break;
   }
   if(type==='zombie'){
-    return {x, y, radius: 12, speed: 3, type:'zombie', points:10};
-  } else { // faster, smaller enemy
+    return {x, y, radius: 12, speed: 3, type:'zombie', points:10, color:'#f00'};
+  } else { // runner
     return {x, y, radius: 8, speed: 4.5, type:'runner', points:20, color:'#0ff'};
   }
 }
 
 const enemies = [];
-const spawnIntervals = [2000, 5000]; // ms for zombie, runner
-setInterval(()=>{enemies.push(createEnemy('zombie'));}, spawnIntervals[0]);
-setInterval(()=>{enemies.push(createEnemy('runner'));}, spawnIntervals[1]);
+setInterval(()=>{if(!gameOver) enemies.push(createEnemy('zombie'));}, 2000);
+setInterval(()=>{if(!gameOver) enemies.push(createEnemy('runner'));}, 5000);
 
 // Bullets
 const bullets = [];
@@ -43,7 +43,7 @@ const bulletSpeed = 7;
 let lastShot = 0;
 const shotDelay = 300; // ms
 window.addEventListener('keydown', e => {
-  if(e.code==='Space'){
+  if(e.code==='Space' && !gameOver){
     const now = Date.now();
     if(now - lastShot < shotDelay) return;
     lastShot = now;
@@ -62,6 +62,7 @@ window.addEventListener('keydown', e=>{ keys[e.key]=true; });
 window.addEventListener('keyup', e=>{ keys[e.key]=false; });
 
 function update(){
+  if(gameOver) return;
   // player movement
   if(keys['w']) player.y -= player.speed;
   if(keys['s']) player.y += player.speed;
@@ -111,7 +112,10 @@ function update(){
     }
   }
 
-  if(health<0) health = 0;
+  if(health <= 0){
+    health = 0;
+    gameOver = true;
+  }
 }
 
 function draw(){
@@ -123,7 +127,7 @@ function draw(){
   ctx.fill();
   // enemies
   enemies.forEach(e=>{
-    ctx.fillStyle = e.type==='zombie' ? '#f00' : e.color;
+    ctx.fillStyle = e.color;
     ctx.beginPath();
     ctx.arc(e.x, e.y, e.radius,0,Math.PI*2);
     ctx.fill();
@@ -136,7 +140,19 @@ function draw(){
   ctx.font = '16px sans-serif';
   ctx.fillText('Health: '+Math.round(health),10,20);
   ctx.fillText('Score: '+score,10,40);
+  if(gameOver){
+    ctx.fillStyle = 'rgba(0,0,0,0.7)';
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+    ctx.fillStyle = '#f00';
+    ctx.font = '48px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('Game Over', canvas.width/2, canvas.height/2);
+  }
 }
 
-function loop(){ update(); draw(); requestAnimationFrame(loop); }
+function loop(){
+  update();
+  draw();
+  requestAnimationFrame(loop);
+}
 loop();
