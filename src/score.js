@@ -1,15 +1,14 @@
-// Score module with fixed 500-point upgrade reward
+// Score module with fixed 500-point upgrade requirement only.
 // Upgrade 1 requires 50 points.
 // Each subsequent upgrade requires the previous requirement + 500.
-// The reward added on each upgrade is also 500 points.
+// Upgrades no longer add points to the score; they only raise the threshold.
 
 export default class Score {
   constructor(initial = 0) {
-    this.value = initial;          // current score (includes rewards)
+    this.value = initial;          // current score (no upgrade rewards)
     this.upgradeCount = 0;         // number of upgrades performed
     this.baseRequirement = 50;     // requirement for the first upgrade
     this.nextThreshold = this.baseRequirement; // score needed for next upgrade
-    this.upgradeReward = 500;      // points added on each upgrade
     this.requirementIncrement = 500; // increase in requirement after each upgrade
   }
 
@@ -27,8 +26,8 @@ export default class Score {
   _maybeUpgrade() {
     while (this.value >= this.nextThreshold) {
       this.upgradeCount += 1;
-      this.value += this.upgradeReward; // add 500 points per upgrade
-      // increase the requirement for the next upgrade by 500
+      // No reward added to the score for upgrades.
+      // Increase the requirement for the next upgrade by 500.
       this.nextThreshold = this.nextThreshold + this.requirementIncrement;
     }
   }
