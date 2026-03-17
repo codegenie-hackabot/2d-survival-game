@@ -16,10 +16,10 @@ canvas.addEventListener('mousemove', e => {
   mousePos.y = e.clientY - rect.top;
 });
 
-// Enemy factory – health grows over time
-function createEnemy(type){
+// Enemy factory – only zombies now
+function createEnemy(){
   const elapsed = (Date.now() - startTime) / 1000; // seconds
-  const baseHealth = type === 'zombie' ? 20 : 30;
+  const baseHealth = 20; // zombie base health
   const health = Math.floor(baseHealth + elapsed * 2); // increase 2 HP per second
   const side = Math.floor(Math.random()*4);
   let x,y;
@@ -30,16 +30,11 @@ function createEnemy(type){
     case 2: x = Math.random()*canvas.width; y = -margin; break;
     case 3: x = Math.random()*canvas.width; y = canvas.height+margin; break;
   }
-  if(type==='zombie'){
-    return {x, y, radius: 12, speed: 3, type:'zombie', points:10, color:'#f00', health, maxHealth: health};
-  } else { // runner
-    return {x, y, radius: 8, speed: 4.5, type:'runner', points:20, color:'#0ff', health, maxHealth: health};
-  }
+  return {x, y, radius: 12, speed: 3, type:'zombie', points:10, color:'#f00', health, maxHealth: health};
 }
 
 const enemies = [];
-setInterval(()=>{if(!gameOver) enemies.push(createEnemy('zombie'));}, 2000);
-setInterval(()=>{if(!gameOver) enemies.push(createEnemy('runner'));}, 5000);
+setInterval(()=>{ if(!gameOver) enemies.push(createEnemy()); }, 2000);
 
 // Bullets – fixed damage
 const bulletDamage = 15;
@@ -100,7 +95,7 @@ function update(){
     }
   }
 
-  // bullet‑enemy collisions – apply fixed damage
+  // bullet‑enemy collisions – fixed damage
   for(let i=bullets.length-1;i>=0;i--){
     const b = bullets[i];
     for(let j=enemies.length-1;j>=0;j--){
@@ -110,7 +105,6 @@ function update(){
       const dist = Math.hypot(dx, dy);
       if(dist < b.radius + e.radius){
         e.health -= bulletDamage;
-        // remove bullet on hit
         bullets.splice(i,1);
         if(e.health <= 0){
           score += e.points;
@@ -134,13 +128,13 @@ function draw(){
   ctx.beginPath();
   ctx.arc(player.x, player.y, player.radius,0,Math.PI*2);
   ctx.fill();
-  // enemies (draw health bar on each)
+  // enemies (zombies only)
   enemies.forEach(e=>{
     ctx.fillStyle = e.color;
     ctx.beginPath();
     ctx.arc(e.x, e.y, e.radius,0,Math.PI*2);
     ctx.fill();
-    // health indicator
+    // health label
     ctx.fillStyle = '#fff';
     ctx.font = '10px sans-serif';
     ctx.textAlign = 'center';
