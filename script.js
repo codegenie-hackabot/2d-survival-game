@@ -95,7 +95,7 @@ function applyUpgrade(choice){
     healthRegen += 2; // +2 HP per second
   } else if(choice === 'maxHealth'){
     maxHealth += 20; // increase max health
-    health = Math.min(health, maxHealth);
+    if(health > maxHealth) health = maxHealth;
   }
   nextUpgradeScore += 50;
   pendingUpgrade = false;
@@ -112,6 +112,35 @@ function fireBullet(){
   const vx = (dx/dist) * bulletSpeed;
   const vy = (dy/dist) * bulletSpeed;
   bullets.push({x: player.x, y: player.y, radius: 4, vx, vy});
+}
+
+function resolveEnemyCollisions(){
+  // Simple repulsion: if two enemies overlap, push them apart equally
+  for(let i=0;i<enemies.length;i++){
+    for(let j=i+1;j<enemies.length;j++){
+      const a = enemies[i];
+      const b = enemies[j];
+      const dx = b.x - a.x;
+      const dy = b.y - a.y;
+      const dist = Math.hypot(dx, dy);
+      const minDist = a.radius + b.radius;
+      if(dist < minDist && dist > 0){
+        const overlap = minDist - dist;
+        const nx = dx/dist;
+        const ny = dy/dist;
+        // move each half the overlap opposite directions
+        a.x -= nx * overlap/2;
+        a.y -= ny * overlap/2;
+        b.x += nx * overlap/2;
+        b.y += ny * overlap/2;
+        // keep within bounds
+        a.x = Math.max(a.radius, Math.min(canvas.width-a.radius, a.x));
+        a.y = Math.max(a.radius, Math.min(canvas.height-a.radius, a.y));
+        b.x = Math.max(b.radius, Math.min(canvas.width-b.radius, b.x));
+        b.y = Math.max(b.radius, Math.min(canvas.height-b.radius, b.y));
+      }
+    }
+  }
 }
 
 function update(){
@@ -158,6 +187,9 @@ function update(){
     }
   });
 
+  // prevent enemies from overlapping
+  resolveEnemyCollisions();
+
   // bullets movement
   for(let i=bullets.length-1;i>=0;i--){
     const b = bullets[i];
@@ -190,7 +222,7 @@ function update(){
 
   // health regeneration
   if(healthRegen > 0){
-    health += healthRegen * (16/1000); // assuming ~16ms per frame
+    health += healthRegen * (16/1000);
     if(health > maxHealth) health = maxHealth;
   }
 
@@ -244,7 +276,7 @@ function draw(){
     ctx.font = '20px sans-serif';
     ctx.fillText('Press 1 for +Damage (+5)', canvas.width/2, canvas.height/2 - 60);
     ctx.fillText('Press 2 for -Delay (-20ms)', canvas.width/2, canvas.height/2 - 30);
-    ctx.fillText('Press 3 for +Bullet Speed (+2)', canvas.width/2, canvas.height/2 );
+    ctx.fillText('Press 3 for +Bullet Speed (+2)', canvas.width/2, canvas.height/2);
     ctx.fillText('Press 4 for +Regen (+2/s)', canvas.width/2, canvas.height/2 + 30);
     ctx.fillText('Press 5 for +Max Health (+20)', canvas.width/2, canvas.height/2 + 60);
     ctx.fillText('Current: Dmg '+bulletDamage+', Delay '+shotDelay+'ms, Speed '+bulletSpeed+', Regen '+healthRegen+', MaxHP '+maxHealth, canvas.width/2, canvas.height/2 + 100);
